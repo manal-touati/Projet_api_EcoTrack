@@ -99,7 +99,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6)
+    password: str
     role: str = Field(default='user')
 
     @field_validator('role')
@@ -113,7 +113,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
     email: Optional[EmailStr] = None
-    password: Optional[str] = Field(None, min_length=6)
+    password: Optional[str] = None
     role: Optional[str] = None
 
     @field_validator('role')
@@ -156,3 +156,19 @@ class SourceResponse(SourceBase):
 
     class Config:
         from_attributes = True
+
+
+# Schémas pour l'authentification
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+    role: Optional[str] = None

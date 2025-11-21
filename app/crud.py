@@ -1,5 +1,7 @@
 from sqlalchemy import and_, asc, desc, func
 from sqlalchemy.orm import Session
+import bcrypt
+from datetime import datetime
 from app.models import Emission, Global, Source, User
 from app.schemas import (
     EmissionCreate, EmissionUpdate,
@@ -9,10 +11,10 @@ from app.schemas import (
 )
 
 
-# ==================== EMISSIONS CO2 ====================
-
+# CRUD EMISSIONS
 def get_emissions(db: Session, skip: int = 0, limit: int = 100, filters: dict = None):
-    """Liste des émissions avec filtres et pagination"""
+
+    #Liste des émissions avec filtres et pagination
     query = db.query(Emission)
     
     if filters:
@@ -37,60 +39,15 @@ def get_emissions(db: Session, skip: int = 0, limit: int = 100, filters: dict = 
 
 
 def get_emission_by_id(db: Session, emission_id: int):
-    """Récupérer une émission par ID"""
+
+    #Récupérer une émission par ID
     return db.query(Emission).filter(Emission.id == emission_id).first()
 
 
-def create_emission(db: Session, emission: EmissionCreate):
-    """Créer une nouvelle émission"""
-    existing = db.query(Emission).filter(
-        and_(
-            Emission.country == emission.country,
-            Emission.date == emission.date,
-            Emission.sector == emission.sector
-        )
-    ).first()
-    
-    if existing:
-        raise ValueError("Une émission pour ce pays, date et secteur existe déjà")
-    
-    db_emission = Emission(**emission.model_dump())
-    db.add(db_emission)
-    db.commit()
-    db.refresh(db_emission)
-    return db_emission
-
-
-def update_emission(db: Session, emission_id: int, emission: EmissionUpdate):
-    """Mettre à jour une émission"""
-    db_emission = db.query(Emission).filter(Emission.id == emission_id).first()
-    if not db_emission:
-        return None
-    
-    update_data = emission.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_emission, field, value)
-    
-    db.commit()
-    db.refresh(db_emission)
-    return db_emission
-
-
-def delete_emission(db: Session, emission_id: int):
-    """Supprimer une émission"""
-    db_emission = db.query(Emission).filter(Emission.id == emission_id).first()
-    if not db_emission:
-        return False
-    
-    db.delete(db_emission)
-    db.commit()
-    return True
-
-
-# ==================== GLOBAL AIR QUALITY ====================
-
+# CRUD GLOBAL
 def get_air_quality(db: Session, skip: int = 0, limit: int = 100, filters: dict = None):
-    """Liste des mesures de qualité d'air avec filtres et pagination"""
+
+    #Liste des mesures de qualité d'air avec filtres et pagination
     query = db.query(Global)
     
     if filters:
@@ -115,164 +72,155 @@ def get_air_quality(db: Session, skip: int = 0, limit: int = 100, filters: dict 
 
 
 def get_air_quality_by_id(db: Session, air_quality_id: int):
-    """Récupérer une mesure par ID"""
+
+    #Récupérer une mesure par ID
     return db.query(Global).filter(Global.id == air_quality_id).first()
 
 
-def create_air_quality(db: Session, air_quality: GlobalCreate):
-    """Créer une nouvelle mesure de qualité d'air"""
-    existing = db.query(Global).filter(
-        and_(
-            Global.city == air_quality.city,
-            Global.country == air_quality.country,
-            Global.date == air_quality.date
-        )
-    ).first()
-    
-    if existing:
-        raise ValueError("Une mesure pour cette ville, pays et date existe déjà")
-    
-    db_air_quality = Global(**air_quality.model_dump())
-    db.add(db_air_quality)
-    db.commit()
-    db.refresh(db_air_quality)
-    return db_air_quality
-
-
-def update_air_quality(db: Session, air_quality_id: int, air_quality: GlobalUpdate):
-    """Mettre à jour une mesure de qualité d'air"""
-    db_air_quality = db.query(Global).filter(Global.id == air_quality_id).first()
-    if not db_air_quality:
-        return None
-    
-    update_data = air_quality.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_air_quality, field, value)
-    
-    db.commit()
-    db.refresh(db_air_quality)
-    return db_air_quality
-
-
-def delete_air_quality(db: Session, air_quality_id: int):
-    """Supprimer une mesure de qualité d'air"""
-    db_air_quality = db.query(Global).filter(Global.id == air_quality_id).first()
-    if not db_air_quality:
-        return False
-    
-    db.delete(db_air_quality)
-    db.commit()
-    return True
-
-
-# ==================== SOURCES ====================
-
+# CRUD SOURCES
 def get_sources(db: Session, skip: int = 0, limit: int = 100):
-    """Liste des sources avec pagination"""
+
+    #Liste des sources avec pagination
     return db.query(Source).offset(skip).limit(limit).all()
 
 
 def get_source_by_id(db: Session, source_id: int):
-    """Récupérer une source par ID"""
+
+    #Récupérer une source par ID
     return db.query(Source).filter(Source.id == source_id).first()
 
 
-def create_source(db: Session, source: SourceCreate):
-    """Créer une nouvelle source"""
-    existing = db.query(Source).filter(Source.name == source.name).first()
-    if existing:
-        raise ValueError("Une source avec ce nom existe déjà")
-    
-    db_source = Source(**source.model_dump())
-    db.add(db_source)
-    db.commit()
-    db.refresh(db_source)
-    return db_source
-
-
-def update_source(db: Session, source_id: int, source: SourceUpdate):
-    """Mettre à jour une source"""
-    db_source = db.query(Source).filter(Source.id == source_id).first()
-    if not db_source:
-        return None
-    
-    update_data = source.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_source, field, value)
-    
-    db.commit()
-    db.refresh(db_source)
-    return db_source
-
-
-def delete_source(db: Session, source_id: int):
-    """Supprimer une source"""
-    db_source = db.query(Source).filter(Source.id == source_id).first()
-    if not db_source:
-        return False
-    
-    db.delete(db_source)
-    db.commit()
-    return True
-
-
-# ==================== USERS ====================
-
+# CRUD USERS
 def get_users(db: Session, skip: int = 0, limit: int = 100):
-    """Liste des utilisateurs avec pagination"""
+
+    #Liste des utilisateurs avec pagination
     return db.query(User).offset(skip).limit(limit).all()
 
 
 def get_user_by_id(db: Session, user_id: int):
-    """Récupérer un utilisateur par ID"""
+
+    #Récupérer un utilisateur par ID
     return db.query(User).filter(User.id == user_id).first()
 
 
 def get_user_by_email(db: Session, email: str):
-    """Récupérer un utilisateur par email"""
+
+    #Récupérer un utilisateur par email
     return db.query(User).filter(User.email == email).first()
 
 
 def get_user_by_username(db: Session, username: str):
-    """Récupérer un utilisateur par username"""
+
+    #Récupérer un utilisateur par username
     return db.query(User).filter(User.username == username).first()
 
 
 def create_user(db: Session, user: UserCreate):
-    """Créer un nouveau utilisateur"""
+
+    #Créer un nouvel utilisateur avec mot de passe haché
     if get_user_by_email(db, user.email):
         raise ValueError("Un utilisateur avec cet email existe déjà")
     if get_user_by_username(db, user.username):
         raise ValueError("Un utilisateur avec ce username existe déjà")
     
-    db_user = User(**user.model_dump())
+    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+    db_user = User(
+        username=user.username,
+        email=user.email,
+        password=hashed_password.decode('utf-8'),
+        role=user.role
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
 
-def update_user(db: Session, user_id: int, user: UserUpdate):
-    """Mettre à jour un utilisateur"""
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if not db_user:
-        return None
-    
-    update_data = user.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_user, field, value)
-    
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+def verify_password(plain_password: str, hashed_password: str):
+
+    #Vérifier le mot de passe
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+def authenticate_user(db: Session, email: str, password: str):
+
+    #Authentifier un utilisateur
+    user = get_user_by_email(db, email)
+    if not user:
+        return False
+    if not verify_password(password, user.password):
+        return False
+    return user
 
 
 def delete_user(db: Session, user_id: int):
-    """Supprimer un utilisateur"""
-    db_user = db.query(User).filter(User.id == user_id).first()
-    if not db_user:
-        return False
+
+    #Supprimer un utilisateur
+    user = get_user_by_id(db, user_id)
+    if user:
+        db.delete(user)
+        db.commit()
+        return True
+    return False
+
+
+# STATISTIQUES
+def get_air_quality_averages(db: Session, date_from: str = None, date_to: str = None, zone: str = None):
+
+    #Calculer les moyennes des polluants sur une période
+    query = db.query(
+        func.avg(Global.pm25).label('pm25_avg'),
+        func.avg(Global.pm10).label('pm10_avg'),
+        func.avg(Global.no2).label('no2_avg'),
+        func.avg(Global.so2).label('so2_avg'),
+        func.avg(Global.co).label('co_avg'),
+        func.avg(Global.o3).label('o3_avg')
+    )
     
-    db.delete(db_user)
-    db.commit()
-    return True
+    if date_from:
+        from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        query = query.filter(Global.date >= from_date)
+    if date_to:
+        to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+        query = query.filter(Global.date <= to_date)
+    if zone:
+        query = query.filter(Global.country == zone)
+    
+    result = query.first()
+    
+    return {
+        "pm25_avg": round(float(result.pm25_avg), 2) if result and result.pm25_avg is not None else 0,
+        "pm10_avg": round(float(result.pm10_avg), 2) if result and result.pm10_avg is not None else 0,
+        "no2_avg": round(float(result.no2_avg), 2) if result and result.no2_avg is not None else 0,
+        "so2_avg": round(float(result.so2_avg), 2) if result and result.so2_avg is not None else 0,
+        "co_avg": round(float(result.co_avg), 2) if result and result.co_avg is not None else 0,
+        "o3_avg": round(float(result.o3_avg), 2) if result and result.o3_avg is not None else 0
+    }
+
+
+def get_co2_trend(db: Session, zone: str = None, period: str = "monthly", sector: str = None):
+
+    #Obtenir l'évolution des émissions CO2
+    if period == "monthly":
+        date_format = func.strftime('%Y-%m', Emission.date)
+    else:
+        date_format = func.strftime('%Y', Emission.date)
+    
+    query = db.query(
+        date_format.label('period'),
+        func.sum(Emission.value).label('total')
+    )
+    
+    if zone:
+        query = query.filter(Emission.country == zone)
+    if sector:
+        query = query.filter(Emission.sector == sector)
+    
+    query = query.group_by('period').order_by('period')
+    
+    results = query.all()
+    
+    return {
+        "labels": [r.period for r in results],
+        "values": [round(r.total, 2) for r in results]
+    }

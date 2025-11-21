@@ -161,7 +161,7 @@ class SourceResponse(SourceBase):
 # Schémas pour l'authentification
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., json_schema_extra={"format": "password"})
 
 
 class Token(BaseModel):

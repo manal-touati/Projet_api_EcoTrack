@@ -123,7 +123,7 @@ def create_user(db: Session, user: UserCreate):
     if get_user_by_username(db, user.username):
         raise ValueError("Un utilisateur avec ce username existe déjà")
     
-    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+    hashed_password = bcrypt.hashpw(user.password[:72].encode('utf-8'), bcrypt.gensalt())
     db_user = User(
         username=user.username,
         email=user.email,
@@ -139,7 +139,7 @@ def create_user(db: Session, user: UserCreate):
 def verify_password(plain_password: str, hashed_password: str):
 
     #Vérifier le mot de passe
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    return bcrypt.checkpw(plain_password[:72].encode('utf-8'), hashed_password.encode('utf-8'))
 
 
 def authenticate_user(db: Session, email: str, password: str):
@@ -162,6 +162,37 @@ def delete_user(db: Session, user_id: int):
         db.commit()
         return True
     return False
+
+
+def update_user(db: Session, user_id: int, user_update: UserUpdate):
+
+    #Mettre à jour un utilisateur (rôle, etc.)
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return None
+    
+    if user_update.username is not None:
+        existing = get_user_by_username(db, user_update.username)
+        if existing and existing.id != user_id:
+            raise ValueError("Un utilisateur avec ce username existe déjà")
+        user.username = user_update.username
+    
+    if user_update.email is not None:
+        existing = get_user_by_email(db, user_update.email)
+        if existing and existing.id != user_id:
+            raise ValueError("Un utilisateur avec cet email existe déjà")
+        user.email = user_update.email
+    
+    if user_update.password is not None:
+        hashed_password = bcrypt.hashpw(user_update.password[:72].encode('utf-8'), bcrypt.gensalt())
+        user.password = hashed_password.decode('utf-8')
+    
+    if user_update.role is not None:
+        user.role = user_update.role
+    
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 # STATISTIQUES

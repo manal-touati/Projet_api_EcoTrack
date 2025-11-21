@@ -44,6 +44,9 @@
         h2 {
             color: #667eea;
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .filters {
             display: grid;
@@ -57,27 +60,41 @@
             border-radius: 8px;
             font-size: 1em;
         }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             cursor: pointer;
             font-weight: 600;
-            transition: transform 0.3s;
+            transition: all 0.3s;
         }
         button:hover {
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #e0e0e0;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
         }
         table th {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 12px;
             text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         table td {
             padding: 12px;
@@ -86,6 +103,9 @@
         table tr:hover {
             background: #f5f5f5;
         }
+        table tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
         .error {
             background: #fee;
             color: #c33;
@@ -93,6 +113,7 @@
             border-radius: 8px;
             margin-bottom: 15px;
             display: none;
+            border-left: 4px solid #c33;
         }
         .form-group {
             margin-bottom: 15px;
@@ -103,8 +124,45 @@
             font-weight: 600;
             color: #333;
         }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-box .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .stat-box .value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
         #trendChart {
             margin-top: 20px;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -115,76 +173,95 @@
             <p>Suivi des émissions CO2 et de la qualité de l'air</p>
         </header>
 
-        <!-- Filtres et Affichage des Données - Émissions CO2 -->
-        <div class="card">
-            <h2>📊 Émissions CO2</h2>
-            <div class="filters">
-                <input type="text" id="country" placeholder="Pays (ex: France)">
-                <select id="sector">
-                    <option value="">Tous les secteurs</option>
-                    <option value="Power">Power</option>
-                    <option value="Industry">Industry</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Residential">Residential</option>
-                    <option value="Commercial">Commercial</option>
-                    <option value="Agriculture">Agriculture</option>
-                </select>
-                <input type="date" id="dateFrom">
-                <input type="date" id="dateTo">
-                <button onclick="fetchEmissions()">Rechercher</button>
+        <!-- Authentification et Gestion des Utilisateurs -->
+        <div class="grid-2">
+            <!-- Connexion -->
+            <div class="card">
+                <h2>🔐 Se Connecter</h2>
+                <form id="loginForm" onsubmit="loginUser(event)" style="padding: 0 40px;">
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="loginEmail" required style="width: 100%; font-size: 1.05em; padding: 14px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" id="loginPassword" required style="width: 100%; font-size: 1.05em; padding: 14px;">
+                    </div>
+                    <button type="submit" style="width: 100%; font-size: 1.05em; padding: 14px;">🔑 Connexion</button>
+                    <div id="loginError" class="error"></div>
+                </form>
+                <div id="loginSuccess" style="display: none; background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin: 15px 40px 0;">
+                    <strong>✅ Connecté avec succès !</strong>
+                    <p id="tokenDisplay" style="font-size: 0.9em; margin-top: 5px; word-break: break-all;"></p>
+                </div>
             </div>
-            <div id="errorEmissions" class="error"></div>
-            <div id="emissionsTable"></div>
-        </div>
 
-        <!-- Qualité de l'Air -->
-        <div class="card">
-            <h2>🌫️ Qualité de l'Air</h2>
-            <div class="filters">
-                <input type="text" id="city" placeholder="Ville">
-                <input type="text" id="countryAir" placeholder="Pays">
-                <input type="date" id="airDateFrom">
-                <input type="date" id="airDateTo">
-                <button onclick="fetchAirQuality()">Rechercher</button>
+            <!-- Création Utilisateur -->
+            <div class="card">
+                <h2>➕ Créer un Utilisateur</h2>
+                <form id="userForm" onsubmit="createUser(event)" style="padding: 0 40px;">
+                    <div class="form-group">
+                        <label>Username:</label>
+                        <input type="text" id="username" required style="width: 100%; font-size: 1.05em; padding: 14px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="email" required style="width: 100%; font-size: 1.05em; padding: 14px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" id="password" required style="width: 100%; font-size: 1.05em; padding: 14px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Role:</label>
+                        <select id="role" required style="width: 100%; font-size: 1.05em; padding: 14px;">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" style="width: 100%; font-size: 1.05em; padding: 14px;">✨ Créer</button>
+                    <div id="formError" class="error"></div>
+                </form>
             </div>
-            <div id="errorAir" class="error"></div>
-            <div id="airTable"></div>
         </div>
 
-        <!-- Liste des Utilisateurs -->
-        <div class="card">
-            <h2>👥 Utilisateurs</h2>
-            <button onclick="fetchUsers()">Afficher les utilisateurs</button>
-            <div id="errorUsers" class="error"></div>
-            <div id="usersTable"></div>
-        </div>
-
-        <!-- Formulaire Création/Modification -->
-        <div class="card">
-            <h2>➕ Créer un Utilisateur</h2>
-            <form id="userForm" onsubmit="createUser(event)">
-                <div class="form-group">
-                    <label>Username:</label>
-                    <input type="text" id="username" required>
-                </div>
-                <div class="form-group">
-                    <label>Email:</label>
-                    <input type="email" id="email" required>
-                </div>
-                <div class="form-group">
-                    <label>Password:</label>
-                    <input type="password" id="password" required>
-                </div>
-                <div class="form-group">
-                    <label>Role:</label>
-                    <select id="role" required>
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
+        <!-- Grille principale pour les données -->
+        <div class="grid-2">
+            <!-- Filtres et Affichage des Données - Émissions CO2 -->
+            <div class="card">
+                <h2>📊 Émissions CO2</h2>
+                <div class="filters">
+                    <input type="text" id="country" placeholder="Pays (ex: France)">
+                    <select id="sector">
+                        <option value="">Tous les secteurs</option>
+                        <option value="Power">Power</option>
+                        <option value="Industry">Industry</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Residential">Residential</option>
+                        <option value="Commercial">Commercial</option>
+                        <option value="Agriculture">Agriculture</option>
                     </select>
+                    <input type="date" id="dateFrom">
+                    <input type="date" id="dateTo">
+                    <button onclick="fetchEmissions()">🔍 Rechercher</button>
                 </div>
-                <button type="submit">Créer</button>
-            </form>
-            <div id="formError" class="error"></div>
+                <div id="errorEmissions" class="error"></div>
+                <div class="table-container" id="emissionsTable"></div>
+            </div>
+
+            <!-- Qualité de l'Air -->
+            <div class="card">
+                <h2>🌫️ Qualité de l'Air</h2>
+                <div class="filters">
+                    <input type="text" id="city" placeholder="Ville">
+                    <input type="text" id="countryAir" placeholder="Pays">
+                    <input type="date" id="airDateFrom">
+                    <input type="date" id="airDateTo">
+                    <button onclick="fetchAirQuality()">🔍 Rechercher</button>
+                </div>
+                <div id="errorAir" class="error"></div>
+                <div class="table-container" id="airTable"></div>
+            </div>
         </div>
 
         <!-- Statistiques -->
@@ -194,9 +271,9 @@
                 <input type="date" id="statsFrom" placeholder="Date début">
                 <input type="date" id="statsTo" placeholder="Date fin">
                 <input type="text" id="statsZone" placeholder="Zone/Pays">
-                <button onclick="fetchAirStats()">Calculer</button>
+                <button onclick="fetchAirStats()">📊 Calculer</button>
             </div>
-            <div id="airStats"></div>
+            <canvas id="airStatsChart" style="max-width: 500px; margin: 20px auto;"></canvas>
         </div>
 
         <div class="card">
@@ -207,15 +284,24 @@
                     <option value="monthly">Mensuel</option>
                     <option value="yearly">Annuel</option>
                 </select>
-                <button onclick="fetchTrend()">Générer</button>
+                <button onclick="fetchTrend()">📊 Générer</button>
             </div>
             <canvas id="trendChart"></canvas>
+        </div>
+
+        <!-- Liste des Utilisateurs -->
+        <div class="card">
+            <h2>👥 Liste des Utilisateurs</h2>
+            <button onclick="fetchUsers()">📋 Afficher les utilisateurs</button>
+            <div id="errorUsers" class="error"></div>
+            <div class="table-container" id="usersTable" style="max-height: 350px;"></div>
         </div>
     </div>
 
     <script>
         const API = 'http://127.0.0.1:8000';
         let chart = null;
+        let airStatsChart = null;
 
         function showError(id, msg) {
             const el = document.getElementById(id);
@@ -243,7 +329,7 @@
                 const data = await response.json();
                 
                 if (data.length === 0) {
-                    document.getElementById('emissionsTable').innerHTML = '<p>Aucune donnée trouvée.</p>';
+                    document.getElementById('emissionsTable').innerHTML = '<p class="no-data">Aucune donnée trouvée.</p>';
                     return;
                 }
                 
@@ -298,7 +384,7 @@
                 const data = await response.json();
                 
                 if (data.length === 0) {
-                    document.getElementById('airTable').innerHTML = '<p>Aucune donnée trouvée.</p>';
+                    document.getElementById('airTable').innerHTML = '<p class="no-data">Aucune donnée trouvée.</p>';
                     return;
                 }
                 
@@ -339,14 +425,29 @@
         }
 
         async function fetchUsers() {
+            const token = localStorage.getItem('authToken');
+            
+            if (!token) {
+                showError('errorUsers', 'Vous devez être connecté en tant qu\'admin');
+                return;
+            }
+            
             try {
-                const response = await fetch(`${API}/users?limit=50`);
-                if (!response.ok) throw new Error('Erreur lors de la récupération');
+                const response = await fetch(`${API}/users?limit=50`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Erreur lors de la récupération');
+                }
                 
                 const data = await response.json();
                 
                 if (data.length === 0) {
-                    document.getElementById('usersTable').innerHTML = '<p>Aucun utilisateur trouvé.</p>';
+                    document.getElementById('usersTable').innerHTML = '<p class="no-data">Aucun utilisateur trouvé.</p>';
                     return;
                 }
                 
@@ -370,8 +471,8 @@
                             <td>${user.id}</td>
                             <td>${user.username}</td>
                             <td>${user.email}</td>
-                            <td>${user.role}</td>
-                            <td>${user.created_at}</td>
+                            <td><span style="background: ${user.role === 'admin' ? '#667eea' : '#10b981'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em;">${user.role}</span></td>
+                            <td>${new Date(user.created_at).toLocaleDateString('fr-FR')}</td>
                         </tr>
                     `;
                 });
@@ -400,32 +501,57 @@
                 
                 const data = await response.json();
                 
-                const html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>PM2.5</th>
-                                <th>PM10</th>
-                                <th>NO2</th>
-                                <th>SO2</th>
-                                <th>CO</th>
-                                <th>O3</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>${data.pm25_avg} µg/m³</td>
-                                <td>${data.pm10_avg} µg/m³</td>
-                                <td>${data.no2_avg} µg/m³</td>
-                                <td>${data.so2_avg} µg/m³</td>
-                                <td>${data.co_avg} mg/m³</td>
-                                <td>${data.o3_avg} µg/m³</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                `;
+                if (airStatsChart) airStatsChart.destroy();
                 
-                document.getElementById('airStats').innerHTML = html;
+                const ctx = document.getElementById('airStatsChart').getContext('2d');
+                airStatsChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['PM2.5', 'PM10', 'NO2', 'SO2', 'CO', 'O3'],
+                        datasets: [{
+                            data: [
+                                data.pm25_avg,
+                                data.pm10_avg,
+                                data.no2_avg,
+                                data.so2_avg,
+                                data.co_avg,
+                                data.o3_avg
+                            ],
+                            backgroundColor: [
+                                '#667eea',
+                                '#764ba2',
+                                '#f093fb',
+                                '#4facfe',
+                                '#43e97b',
+                                '#fa709a'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    font: { size: 14 },
+                                    padding: 15
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const unit = label === 'CO' ? 'mg/m³' : 'µg/m³';
+                                        return label + ': ' + value.toFixed(2) + ' ' + unit;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
                 
             } catch (error) {
                 alert('Erreur: ' + error.message);
@@ -505,8 +631,39 @@
             }
         }
 
+        async function loginUser(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch(`${API}/users/login?email=${email}&password=${password}`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Erreur lors de la connexion');
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('loginSuccess').style.display = 'block';
+                document.getElementById('tokenDisplay').textContent = `Token: ${data.access_token}`;
+                document.getElementById('loginForm').reset();
+                
+                // Stocker le token pour utilisation future
+                localStorage.setItem('authToken', data.access_token);
+                
+            } catch (error) {
+                showError('loginError', error.message);
+            }
+        }
+
         // Charger données initiales
         fetchEmissions();
+        fetchAirQuality();
     </script>
 </body>
 </html>

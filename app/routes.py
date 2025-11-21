@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -154,7 +154,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/users/login", tags=["Users"])
-def login(email: str, password: str, db: Session = Depends(get_db)):
+def login(email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
 
     #Connexion et génération du token JWT
     user = crud.authenticate_user(db, email, password)
@@ -204,6 +204,23 @@ def delete_user(
     if not crud.delete_user(db, user_id):
         raise HTTPException(status_code=404, detail="User not found")
     return None
+
+
+@router.put("/users/{user_id}", response_model=schemas.UserResponse, tags=["Users"])
+def update_user(
+    user_id: int,
+    user_update: schemas.UserUpdate,
+    user=Depends(get_current_active_admin),
+    db: Session = Depends(get_db)
+):
+    #Mettre à jour un utilisateur - modification du rôle (admin uniquement)
+    try:
+        updated_user = crud.update_user(db, user_id, user_update)
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return updated_user
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # STATISTIQUES

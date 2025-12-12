@@ -295,6 +295,40 @@
             <button onclick="fetchUsers()">📋 Afficher les utilisateurs</button>
             <div id="errorUsers" class="error"></div>
             <div class="table-container" id="usersTable" style="max-height: 350px;"></div>
+            
+            <!-- Modal de modification -->
+            <div id="editUserModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%;">
+                    <h3 style="margin-bottom: 20px; color: #667eea;">Modifier l'utilisateur</h3>
+                    <form id="editUserForm" onsubmit="updateUser(event)">
+                        <input type="hidden" id="editUserId">
+                        <div class="form-group">
+                            <label>Username:</label>
+                            <input type="text" id="editUsername" required style="width: 100%; padding: 10px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" id="editEmail" required style="width: 100%; padding: 10px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Role:</label>
+                            <select id="editRole" required style="width: 100%; padding: 10px;">
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nouveau mot de passe (optionnel):</label>
+                            <input type="password" id="editPassword" style="width: 100%; padding: 10px;">
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" style="flex: 1;">💾 Enregistrer</button>
+                            <button type="button" onclick="closeEditModal()" style="flex: 1; background: #6b7280;">❌ Annuler</button>
+                        </div>
+                        <div id="editError" class="error"></div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -460,6 +494,7 @@
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Créé le</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -473,6 +508,10 @@
                             <td>${user.email}</td>
                             <td><span style="background: ${user.role === 'admin' ? '#667eea' : '#10b981'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em;">${user.role}</span></td>
                             <td>${new Date(user.created_at).toLocaleDateString('fr-FR')}</td>
+                            <td>
+                                <button onclick="editUser(${user.id}, '${user.username}', '${user.email}', '${user.role}')" style="padding: 6px 12px; font-size: 0.85em; margin-right: 5px;">✏️ Modifier</button>
+                                <button onclick="deleteUser(${user.id})" style="padding: 6px 12px; font-size: 0.85em; background: #ef4444;">🗑️ Supprimer</button>
+                            </td>
                         </tr>
                     `;
                 });
@@ -638,8 +677,13 @@
             const password = document.getElementById('loginPassword').value;
             
             try {
-                const response = await fetch(`${API}/users/login?email=${email}&password=${password}`, {
-                    method: 'POST'
+                const formData = new FormData();
+                formData.append('email', email);
+                formData.append('password', password);
+                
+                const response = await fetch(`${API}/users/login`, {
+                    method: 'POST',
+                    body: formData
                 });
                 
                 if (!response.ok) {
@@ -658,6 +702,93 @@
                 
             } catch (error) {
                 showError('loginError', error.message);
+            }
+        }
+
+        function editUser(id, username, email, role) {
+            document.getElementById('editUserId').value = id;
+            document.getElementById('editUsername').value = username;
+            document.getElementById('editEmail').value = email;
+            document.getElementById('editRole').value = role;
+            document.getElementById('editPassword').value = '';
+            document.getElementById('editUserModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editUserModal').style.display = 'none';
+        }
+
+        async function updateUser(event) {
+            event.preventDefault();
+            
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                showError('editError', 'Vous devez être connecté en tant qu\'admin');
+                return;
+            }
+            
+            const id = document.getElementById('editUserId').value;
+            const username = document.getElementById('editUsername').value;
+            const email = document.getElementById('editEmail').value;
+            const role = document.getElementById('editRole').value;
+            const password = document.getElementById('editPassword').value;
+            
+            const body = { username, email, role };
+            if (password) {
+                body.password = password;
+            }
+            
+            try {
+                const response = await fetch(`${API}/users/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Erreur lors de la modification');
+                }
+                
+                closeEditModal();
+                fetchUsers();
+                
+            } catch (error) {
+                showError('editError', error.message);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
+                return;
+            }
+            
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                showError('errorUsers', 'Vous devez être connecté en tant qu\'admin');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API}/users/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Erreur lors de la suppression');
+                }
+                
+                fetchUsers();
+                
+            } catch (error) {
+                showError('errorUsers', error.message);
             }
         }
 
